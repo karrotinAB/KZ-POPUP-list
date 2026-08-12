@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>카자흐스탄 팝업 매대 배정</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-left">
+    <div class="brand">
+      <span class="brand-mark">POG</span>
+      <div class="brand-text">
+        <h1>매대 배정</h1>
+        <p>카자흐스탄 MEGA 팝업 · 출고 리스트 기반</p>
+      </div>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <div class="conn-status" id="connStatus">
+      <span class="conn-dot" id="connDot"></span>
+      <span id="connLabel">연결 확인 중</span>
+    </div>
+    <div class="me">
+      <label for="meInput">작업자</label>
+      <input id="meInput" type="text" placeholder="이름 입력" maxlength="12">
+    </div>
+  </div>
+</header>
+
+<div class="conn-banner" id="connBanner" hidden>
+  ⚠️ 서버 연결이 끊겨있어요. 지금 누르는 매대 배정은 저장되지 않아요 — 상단이 초록불(실시간 연결됨)일 때만 작업해주세요.
+</div>
+
+<div class="shelf-summary" id="shelfSummary"><!-- filled by JS --></div>
+
+<main class="layout">
+
+  <section class="filters">
+    <div class="filter-row">
+      <input id="searchInput" class="search-input" type="text" placeholder="제품명, 제품코드, 바코드, 분류로 검색…">
+    </div>
+    <div class="filter-row filter-selects">
+      <select id="cat1Select"><option value="">대분류 전체</option></select>
+      <select id="cat2Select"><option value="">중분류 전체</option></select>
+      <select id="cat3Select"><option value="">소분류 전체</option></select>
+      <select id="cat4Select"><option value="">세부분류 전체</option></select>
+      <select id="shelfFilterSelect">
+        <option value="">매대 전체</option>
+        <option value="0">미배정</option>
+        <option value="1">1번 · 지제</option>
+        <option value="2">2번 · 문구</option>
+        <option value="3">3번 · 완구</option>
+        <option value="4">4번 · 생활잡화</option>
+        <option value="5">5번 · 뷰티잡화</option>
+        <option value="6">6번 · 패션잡화</option>
+      </select>
+      <button id="resetFilters" class="btn-ghost">필터 초기화</button>
+      <button id="exportExcelBtn" class="btn-ghost">엑셀로 내보내기</button>
+    </div>
+    <div class="filter-meta">
+      <span id="resultCount">0개 제품</span>
+    </div>
+  </section>
+
+  <section class="product-list-wrap">
+    <div class="bulk-bar" id="bulkBar" hidden>
+      <span class="bulk-count" id="bulkCount">0개 선택됨</span>
+      <span class="bulk-label">일괄 배정:</span>
+      <span class="bulk-shelf-btns" id="bulkShelfBtns"></span>
+      <button id="bulkClearAssignBtn" class="btn-ghost btn-small">미배정으로</button>
+      <button id="bulkCopyBtn" class="btn-ghost btn-small">코드 복사</button>
+      <button id="bulkDeselectBtn" class="btn-ghost btn-small">선택 해제</button>
+    </div>
+    <div class="list-header">
+      <span class="col-check"><input type="checkbox" id="selectAllCheckbox" title="현재 검색결과 전체 선택"></span>
+      <span class="col-code">제품코드</span>
+      <span class="col-name">제품명</span>
+      <span class="col-cat">분류</span>
+      <span class="col-qty">출고수량</span>
+      <span class="col-shelf">매대 배정</span>
+    </div>
+    <div id="productList" class="product-list"></div>
+    <div class="load-more-wrap">
+      <button id="loadMoreBtn" class="btn-ghost">더 보기</button>
+    </div>
+  </section>
+
+  <aside class="activity-panel">
+    <h2>최근 변경</h2>
+    <div id="activityFeed" class="activity-feed">
+      <p class="activity-empty">아직 변경 내역이 없어요.</p>
+    </div>
+  </aside>
+
+</main>
+
+<div id="toast" class="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
