@@ -63,7 +63,11 @@ function initSupabase() {
     return;
   }
 
-  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    global: {
+      fetch: (url, options = {}) => fetch(url, { ...options, cache: "no-store" }),
+    },
+  });
   setConn(false, "연결 중…");
 
   fetchAllAssignments().then(() => {
