@@ -405,6 +405,10 @@ function bindBulkEvents() {
 
   el("bulkClearAssignBtn").addEventListener("click", () => bulkAssign(0));
 
+  el("bulkCopyBtn").addEventListener("click", () => {
+    copyCodesToClipboard(Array.from(state.selected), "선택한 제품");
+  });
+
   el("bulkDeselectBtn").addEventListener("click", () => {
     state.selected.clear();
     renderProductList();
@@ -526,15 +530,18 @@ function copyShelfCodes(shelfNum) {
   const codes = state.products
     .filter((p) => (state.assignments[p.code]?.shelf || 0) === shelfNum)
     .map((p) => p.code);
+  copyCodesToClipboard(codes, SHELF_NAMES[shelfNum]);
+}
 
+function copyCodesToClipboard(codes, label) {
   if (codes.length === 0) {
-    showToast(`${SHELF_NAMES[shelfNum]}에 배정된 제품이 아직 없어요.`, true);
+    showToast(`${label}에 해당하는 제품이 없어요.`, true);
     return;
   }
 
   const text = codes.join("\n");
 
-  const done = () => showToast(`${SHELF_NAMES[shelfNum]} 제품코드 ${codes.length.toLocaleString("ko")}개를 복사했어요.`);
+  const done = () => showToast(`${label} 제품코드 ${codes.length.toLocaleString("ko")}개를 복사했어요.`);
   const fail = () => showToast("복사에 실패했어요. 직접 선택해서 복사해주세요.", true);
 
   if (navigator.clipboard && window.isSecureContext) {
