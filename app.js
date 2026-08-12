@@ -41,7 +41,6 @@ async function init() {
   });
 
   await loadProducts();
-  buildCategoryOptions();
   bindFilterEvents();
   bindBulkEvents();
   renderShelfSummary();
@@ -130,35 +129,48 @@ function setConn(online, label) {
   el("connBanner").hidden = online;
 }
 
-/* ---------------- category filter options ---------------- */
+/* ---------------- category filter options (상호 연동) ---------------- */
 
-function buildCategoryOptions() {
-  fillSelect("cat1Select", uniqueSorted(state.products.map((p) => p.cat1)));
-  updateCat2Options();
+function matchesFiltersExcept(p, exclude) {
+  const f = state.filters;
+  if (exclude !== "cat1" && f.cat1 && p.cat1 !== f.cat1) return false;
+  if (exclude !== "cat2" && f.cat2 && p.cat2 !== f.cat2) return false;
+  if (exclude !== "cat3" && f.cat3 && p.cat3 !== f.cat3) return false;
+  if (exclude !== "cat4" && f.cat4 && p.cat4 !== f.cat4) return false;
+
+  if (exclude !== "shelf" && f.shelf) {
+    const assigned = state.assignments[p.code]?.shelf || 0;
+    if (f.shelf === "0" && assigned) return false;
+    if (f.shelf !== "0" && assigned !== Number(f.shelf)) return false;
+  }
+
+  if (exclude !== "q" && f.q) {
+    const hay = (p.code + " " + p.name + " " + p.nameEn + " " + p.barcode + " " + p.cat1 + " " + p.cat2 + " " + p.cat3 + " " + p.cat4).toLowerCase();
+    if (!hay.includes(f.q)) return false;
+  }
+  return true;
 }
 
-function updateCat2Options() {
-  const pool = state.filters.cat1
-    ? state.products.filter((p) => p.cat1 === state.filters.cat1)
-    : state.products;
-  fillSelect("cat2Select", uniqueSorted(pool.map((p) => p.cat2)), state.filters.cat2);
-  updateCat3Options();
-}
+// 지금 걸려있는 다른 필터들을 반영해서, 각 드롭다운에 "실제로 결과가 있는 값"만 보이게 갱신.
+// 선택돼있던 값이 더 이상 유효하지 않으면 자동으로 해제함.
+function refreshCategoryOptions() {
+  const opts1 = uniqueSorted(state.products.filter((p) => matchesFiltersExcept(p, "cat1")).map((p) => p.cat1));
+  const opts2 = uniqueSorted(state.products.filter((p) => matchesFiltersExcept(p, "cat2")).map((p) => p.cat2));
+  const opts3 = uniqueSorted(state.products.filter((p) => matchesFiltersExcept(p, "cat3")).map((p) => p.cat3));
+  const opts4 = uniqueSorted(state.products.filter((p) => matchesFiltersExcept(p, "cat4")).map((p) => p.cat4));
 
-function updateCat3Options() {
-  let pool = state.products;
-  if (state.filters.cat1) pool = pool.filter((p) => p.cat1 === state.filters.cat1);
-  if (state.filters.cat2) pool = pool.filter((p) => p.cat2 === state.filters.cat2);
-  fillSelect("cat3Select", uniqueSorted(pool.map((p) => p.cat3)), state.filters.cat3);
-  updateCat4Options();
-}
+  let changed = false;
+  if (state.filters.cat1 && !opts1.includes(state.filters.cat1)) { state.filters.cat1 = ""; changed = true; }
+  if (state.filters.cat2 && !opts2.includes(state.filters.cat2)) { state.filters.cat2 = ""; changed = true; }
+  if (state.filters.cat3 && !opts3.includes(state.filters.cat3)) { state.filters.cat3 = ""; changed = true; }
+  if (state.filters.cat4 && !opts4.includes(state.filters.cat4)) { state.filters.cat4 = ""; changed = true; }
 
-function updateCat4Options() {
-  let pool = state.products;
-  if (state.filters.cat1) pool = pool.filter((p) => p.cat1 === state.filters.cat1);
-  if (state.filters.cat2) pool = pool.filter((p) => p.cat2 === state.filters.cat2);
-  if (state.filters.cat3) pool = pool.filter((p) => p.cat3 === state.filters.cat3);
-  fillSelect("cat4Select", uniqueSorted(pool.map((p) => p.cat4)), state.filters.cat4);
+  fillSelect("cat1Select", opts1, state.filters.cat1);
+  fillSelect("cat2Select", opts2, state.filters.cat2);
+  fillSelect("cat3Select", opts3, state.filters.cat3);
+  fillSelect("cat4Select", opts4, state.filters.cat4);
+
+  return changed;
 }
 
 function uniqueSorted(arr) {
@@ -179,7 +191,7 @@ function fillSelect(id, values, keepValue) {
     opt.textContent = v;
     select.appendChild(opt);
   }
-  if (values.includes(current)) select.value = current;
+  select.value = values.includes(current) ? current : "";
 }
 
 /* ---------------- filter events ---------------- */
@@ -197,22 +209,16 @@ function bindFilterEvents() {
 
   el("cat1Select").addEventListener("change", (e) => {
     state.filters.cat1 = e.target.value;
-    state.filters.cat2 = state.filters.cat3 = state.filters.cat4 = "";
-    updateCat2Options();
     state.visibleCount = PAGE_SIZE;
     applyFilters();
   });
   el("cat2Select").addEventListener("change", (e) => {
     state.filters.cat2 = e.target.value;
-    state.filters.cat3 = state.filters.cat4 = "";
-    updateCat3Options();
     state.visibleCount = PAGE_SIZE;
     applyFilters();
   });
   el("cat3Select").addEventListener("change", (e) => {
     state.filters.cat3 = e.target.value;
-    state.filters.cat4 = "";
-    updateCat4Options();
     state.visibleCount = PAGE_SIZE;
     applyFilters();
   });
@@ -231,7 +237,6 @@ function bindFilterEvents() {
     state.filters = { q: "", cat1: "", cat2: "", cat3: "", cat4: "", shelf: "" };
     el("searchInput").value = "";
     el("shelfFilterSelect").value = "";
-    buildCategoryOptions();
     state.visibleCount = PAGE_SIZE;
     applyFilters();
   });
@@ -287,26 +292,9 @@ function exportToExcel() {
 /* ---------------- filtering & rendering ---------------- */
 
 function applyFilters() {
-  const { q, cat1, cat2, cat3, cat4, shelf } = state.filters;
+  refreshCategoryOptions(); // 다른 필터 조합에 맞춰 드롭다운 옵션도 함께 갱신
 
-  state.filtered = state.products.filter((p) => {
-    if (cat1 && p.cat1 !== cat1) return false;
-    if (cat2 && p.cat2 !== cat2) return false;
-    if (cat3 && p.cat3 !== cat3) return false;
-    if (cat4 && p.cat4 !== cat4) return false;
-
-    if (shelf) {
-      const assigned = state.assignments[p.code]?.shelf || 0;
-      if (shelf === "0" && assigned) return false;
-      if (shelf !== "0" && assigned !== Number(shelf)) return false;
-    }
-
-    if (q) {
-      const hay = (p.code + " " + p.name + " " + p.nameEn + " " + p.barcode + " " + p.cat1 + " " + p.cat2 + " " + p.cat3 + " " + p.cat4).toLowerCase();
-      if (!hay.includes(q)) return false;
-    }
-    return true;
-  });
+  state.filtered = state.products.filter((p) => matchesFiltersExcept(p, null));
 
   el("resultCount").textContent = `${state.filtered.length.toLocaleString("ko")}개 제품`;
   renderProductList();
