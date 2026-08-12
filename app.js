@@ -93,11 +93,18 @@ function initSupabase() {
 }
 
 async function fetchAllAssignments() {
-  const { data, error } = await sb.from("shelf_assignments").select("*");
-  if (error) throw error;
   state.assignments = {};
-  for (const row of data) {
-    state.assignments[row.product_code] = row;
+  const pageSize = 500; // Supabase 기본 응답 제한(보통 1,000개)보다 넉넉히 낮게 잡아서 안전하게 나눠 받음
+  let from = 0;
+
+  while (true) {
+    const { data, error } = await sb.from("shelf_assignments").select("*").range(from, from + pageSize - 1);
+    if (error) throw error;
+    for (const row of data) {
+      state.assignments[row.product_code] = row;
+    }
+    if (data.length < pageSize) break; // 더 가져올 게 없으면 종료
+    from += pageSize;
   }
 }
 
