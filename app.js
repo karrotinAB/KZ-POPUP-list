@@ -257,11 +257,21 @@ function exportToExcel() {
     return;
   }
 
+  // 체크박스로 선택한 게 있으면 그것만, 없으면 지금 필터된 결과만 내보냄
+  const scopeProducts = state.selected.size > 0
+    ? state.products.filter((p) => state.selected.has(p.code))
+    : state.filtered;
+
+  if (scopeProducts.length === 0) {
+    showToast("내보낼 제품이 없어요. 필터나 선택을 확인해주세요.", true);
+    return;
+  }
+
   const headers = ["제품코드", "제품명", "제품명(영문)", "대분류", "중분류", "소분류", "세부분류", "출고수량", "바코드"];
   const colWidths = [{ wch: 12 }, { wch: 32 }, { wch: 18 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 16 }];
 
   function rowsForShelf(shelfNum) {
-    return state.products
+    return scopeProducts
       .filter((p) => (state.assignments[p.code]?.shelf || 0) === shelfNum)
       .sort((a, b) => {
         const ka = [a.cat1, a.cat2, a.cat3, a.cat4].join("");
@@ -272,21 +282,33 @@ function exportToExcel() {
   }
 
   const wb = XLSX.utils.book_new();
+  let sheetCount = 0;
 
   for (let n = 1; n <= SHELF_COUNT; n++) {
-    const aoa = [headers, ...rowsForShelf(n)];
-    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    const rows = rowsForShelf(n);
+    if (rows.length === 0) continue; // 선택/필터 범위 안에 없는 매대는 시트 생략
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
     ws["!cols"] = colWidths;
     XLSX.utils.book_append_sheet(wb, ws, `${n}_${SHELF_NAMES[n]}`);
+    sheetCount++;
   }
 
-  const unassignedAoa = [headers, ...rowsForShelf(0)];
-  const wsUnassigned = XLSX.utils.aoa_to_sheet(unassignedAoa);
-  wsUnassigned["!cols"] = colWidths;
-  XLSX.utils.book_append_sheet(wb, wsUnassigned, "미배정");
+  const unassignedRows = rowsForShelf(0);
+  if (unassignedRows.length > 0) {
+    const wsUnassigned = XLSX.utils.aoa_to_sheet([headers, ...unassignedRows]);
+    wsUnassigned["!cols"] = colWidths;
+    XLSX.utils.book_append_sheet(wb, wsUnassigned, "미배정");
+    sheetCount++;
+  }
 
+  if (sheetCount === 0) {
+    showToast("내보낼 제품이 없어요.", true);
+    return;
+  }
+
+  const scopeLabel = state.selected.size > 0 ? "선택제품" : "필터결과";
   const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-  XLSX.writeFile(wb, `매대배정_${dateStr}.xlsx`);
+  XLSX.writeFile(wb, `매대배정_${scopeLabel}_${dateStr}.xlsx`);
 }
 
 /* ---------------- filtering & rendering ---------------- */
