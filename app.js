@@ -20,7 +20,7 @@ const state = {
   assignments: {},        // { [product_code]: { shelf, updated_by, updated_at } }
   filtered: [],           // 현재 필터 적용된 결과
   visibleCount: PAGE_SIZE,
-  filters: { q: "", cat1: "", cat2: "", cat3: "", cat4: "", shelf: "" },
+  filters: { q: "", cat1: "", cat2: "", cat3: "", cat4: "", shelf: "", bulkCodes: null },
   me: localStorage.getItem("kaz_pog_me") || "",
   selected: new Set(),    // 일괄 배정을 위해 체크된 제품코드
 };
@@ -148,6 +148,10 @@ function matchesFiltersExcept(p, exclude) {
     const hay = (p.code + " " + p.name + " " + p.nameEn + " " + p.barcode + " " + p.cat1 + " " + p.cat2 + " " + p.cat3 + " " + p.cat4).toLowerCase();
     if (!hay.includes(f.q)) return false;
   }
+
+  if (exclude !== "bulkCodes" && f.bulkCodes && f.bulkCodes.size > 0) {
+    if (!f.bulkCodes.has(p.code)) return false;
+  }
   return true;
 }
 
@@ -234,9 +238,44 @@ function bindFilterEvents() {
   });
 
   el("resetFilters").addEventListener("click", () => {
-    state.filters = { q: "", cat1: "", cat2: "", cat3: "", cat4: "", shelf: "" };
+    state.filters = { q: "", cat1: "", cat2: "", cat3: "", cat4: "", shelf: "", bulkCodes: null };
     el("searchInput").value = "";
     el("shelfFilterSelect").value = "";
+    el("bulkSearchTextarea").value = "";
+    el("bulkSearchStatus").textContent = "";
+    state.visibleCount = PAGE_SIZE;
+    applyFilters();
+  });
+
+  el("bulkSearchToggleBtn").addEventListener("click", () => {
+    const panel = el("bulkSearchPanel");
+    panel.hidden = !panel.hidden;
+  });
+
+  el("bulkSearchApplyBtn").addEventListener("click", () => {
+    const raw = el("bulkSearchTextarea").value;
+    const codes = raw
+      .split(/[\s,]+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    if (codes.length === 0) {
+      state.filters.bulkCodes = null;
+      el("bulkSearchStatus").textContent = "";
+    } else {
+      const codeSet = new Set(codes);
+      state.filters.bulkCodes = codeSet;
+      const matched = state.products.filter((p) => codeSet.has(p.code)).length;
+      el("bulkSearchStatus").textContent = `입력 ${codeSet.size.toLocaleString("ko")}개 중 ${matched.toLocaleString("ko")}개 일치`;
+    }
+    state.visibleCount = PAGE_SIZE;
+    applyFilters();
+  });
+
+  el("bulkSearchClearBtn").addEventListener("click", () => {
+    state.filters.bulkCodes = null;
+    el("bulkSearchTextarea").value = "";
+    el("bulkSearchStatus").textContent = "";
     state.visibleCount = PAGE_SIZE;
     applyFilters();
   });
